@@ -1,24 +1,18 @@
 <?php
-    //questions
-    //how to test for connection error?
-    //do we need to make a class?
-    //fix_String function
-    //can we use file_get_contents?
-    //where to close result?
-
     require_once 'login.php';
 
-    define("ERROR_MSG", "Please try again.");
-    define("COL_SIZE",2);
+    define("COL_SIZE",2); 
 
+    //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
 
-    if($conn->connect_error) die (ERROR_MSG);
-
+    //check if error connection 
+    if($conn->connect_error) die (printError("Please try again."));
 
     echo <<<_END
     <html>
     <head><title>PHP Form Upload</title></head><body>
+    <link rel="stylesheet" type="text/css" href="style.css">
     <h1>Homework 4</h1>
     <form method = "post" action="hw4.php" enctype="multipart/form-data">
         <label for ="title">Title:</label>
@@ -29,79 +23,109 @@
     </form>
     _END;
 
-    $query = "CREATE TABLE IF NOT EXISTS hw4 (
-        title VARCHAR(24),
-        content VARCHAR(2000)
-        )";
-    $result = $conn->query($query);
-
-    //array to hold the lines read from the file
-    $file_lines = array();
-
     if ($_FILES){
-        $file_line = "";
+        $sanitized_lines = "";
 
         //sanitize and read the uploaded file
         $temp = htmlentities($_FILES['filename']['tmp_name']);
+
+        //get file type
+        $file_type = $_FILES['filename']['type'];
+
         $file = fopen($temp,'r');
         //check if file was able to open
         if($file){
-            //get lines of the file while it is not the end of the file
-            while(!feof($file)){
-                $line = fgets($file);
-                if($line !== false){
-                    //sanitize the line
-                    $line = htmlentities($line, ENT_QUOTES, 'UTF-8');
-                    
-                    $file_line .= $line;
+            //get file size
+            $file_size = $_FILES['filename']['size'];
+
+            //check if empty file
+            if($file_size != 0){
+                //check if file is a .txt file
+                if($file_type == "text/plain"){
+                    //get lines of the file while it is not the end of the file
+                    while(!feof($file)){
+                        $line = fgets($file);
+                        if($line !== false){
+                            //sanitize the line
+                            $line = htmlentities($line, ENT_QUOTES, 'UTF-8');
+                            //append sanitized line to file line
+                            $sanitized_lines .= $line;
+                        }
+                    }
+
+                    //close the file
+                    fclose($file);
+
+                    //get user input title and sanitize it
+                    $title = mysql_entities_fix_string($conn,$_POST['title']); 
+
+                    //Check if empty title
+                    if($title == ""){
+                        printError("Title is empty. Please enter a title.<br>");
+                    }
+                    else{
+                        //store data if title is not empty
+                        storeData($title, $sanitized_lines, $conn);
+                    }
+
+                }
+                else{
+                    printError("File is not a text/plain file.");
                 }
             }
-            //close the file
-            fclose($file);
-
-            $title = mysql_entities_fix_string($conn,$_POST['title']);
-
-            //Check empty title
-            if(!$title){
-                echo "Title is empty";
+            else{
+                printError("File is empty.");
             }
-            // else{
-            //     storeData($title,$file_lines,$conn);
-            // }
-
-            printOutTable($conn);
 
         }
         //print out error message if file was unable to open
         else {
-            echo "File was unable to open.";
+            printError("File was unable to open.");
         }
     }
     echo "</body></html>";
 
+    //print data tabale
+    printTable($conn);
+
+    //for printing error messages
+    function printError($msg){
+        echo $msg;
+    }
+
+    //sanitize user input
     function mysql_entities_fix_string($conn,$string){
         return htmlentities(mysql_fix_string($conn,$string));
     }
 
+    //sanitize user input
     function mysql_fix_string($conn,$string){
-        //if(get_magic_quotes_gpc()){                   //this is no longer available in php ver 8
-            $string = stripslashes($string);
-        //}
+        $string = stripslashes($string);
         return $conn->real_escape_string($string);
     }
 
+    //insert title and file lines to the database
     function storeData($title,$file_lines,$conn){
         $query = "INSERT INTO hw4 VALUES('$title','$file_lines')";
         $result = $conn->query($query);
-        if(!$result) die (ERROR_MSG);
+
+        //check if query failed
+        if(!$result){
+            printError("Please try again.");
+        } 
     }
 
-    function printOutTable($conn){
+    //prints out the data tabale
+    function printTable($conn){
         $query = "SELECT * FROM hw4";
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
-        echo "<table><tr><th>Title</th><th>Content</th></tr>";
+        echo "<table>
+                <tr>
+                    <th>Title</th>
+                    <th>Content</th>
+                </tr>";
         for ($j = 0 ; $j < $rows ; ++$j)
         {
             $result->data_seek($j);
@@ -112,11 +136,12 @@
         }
         echo "</table>";
 
+        //close result
+        $result->close();
+
         //close connection
         $conn->close();
 
     }
 
-    //close connection
-    //$conn->close();
 ?>
