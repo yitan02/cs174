@@ -1,8 +1,9 @@
 <?php
     //questions:
-    //how to check for unique salt with password_hash?
     //do we need to account for collision with password_hash?
     //how to sanitize cookie?
+    //where to set and destroy the cookie?
+
 
     require_once 'login.php';
 
@@ -53,7 +54,7 @@
         echo $password . "<br>";
 
         //store name in cookie
-        storeNameInCookie($name);
+        //storeNameInCookie($name);
 
         //hash the password
         $password = password_hash($password, PASSWORD_DEFAULT);
@@ -69,7 +70,6 @@
     // }
 
     //login
-    //can i use post instead of server?
     if(!empty($_POST['username_login']) && !empty($_POST['password_login'])){
         //sanitize inputs
         $username = mysql_entities_fix_string($conn,$_POST['username_login']);
@@ -88,10 +88,38 @@
 
             //check if credentials are correct
             if($username == $stored_username && password_verify($password, $stored_token)){
-                if(isset($_COOKIE['name'])){
-                    $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
-                    echo "Hello " . $name . ", you are logged in!";
-                }
+                echo "you are now logged in!";
+
+                // if(isset($_COOKIE['name'])){
+                //     $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
+                //     echo <<<_END
+                //     <html>
+                //     <body>
+                //     <link rel="stylesheet" type="text/css" href="style.css">
+                //     <h1>Hello! $name, you are logged in! </h1>
+                //     <form method = "post" action="hw5.php">
+                //         <label for ="comment">Comment:</label>
+                //         <input type="text" id="comment" name="comment"><br><br>
+                //         <button>Add Comment</button>
+                //     </form>
+                //     _END;
+                
+                //     echo "</body></html>";
+
+                //     if (!empty($_POST['comment'])) {
+                //         //sanitize comment
+                //         //$comment = mysql_entities_fix_string($conn,$_POST['comment']);
+
+                //         echo "hello";
+
+                //         //add comment to database
+                //         //addComment($username,$comment,$conn);
+                //     }
+
+                //     //printComments($username,$conn);
+
+
+                // }
             }
             else{
                 die("Invalid username/password combination");
@@ -99,15 +127,36 @@
         } 
 
     }
-    // else{
-    //     header('WWW-Authenticate: Basic realm="Restricted Section“');
-    //     header('HTTP/1.0 401 Unauthorized');
-    //     die ("Please enter your username and password");
-    // }
+
+    if(isset($_COOKIE['name'])){
+        $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
+        echo <<<_END
+        <html>
+        <body>
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <h1>Hello! $name, you are logged in! </h1>
+        <form method = "post" action="hw5.php">
+            <label for ="comment">Comment:</label>
+            <input type="text" id="comment" name="comment"><br><br>
+            <button>Add Comment</button>
+        </form>
+        _END;
+    
+        echo "</body></html>";
+
+        if (!empty($_POST['comment'])) {
+            //sanitize comment
+            $comment = mysql_entities_fix_string($conn,$_POST['comment']);
+
+            //add comment to database
+            addComment($username,$comment,$conn);
+        }
+
+        printComments($username,$conn);
 
 
-    //print data tabale
-    //printTable($conn);
+    }
+
 
     //for printing error messages
     function printError(){
@@ -169,8 +218,8 @@
         setcookie('name', $name, time() + WEEK_IN_SEC, '/');
     }
 
-    //prints out the data tabale
-    function printTable($username,$conn){
+    //prints out the data table
+    function printComments($username,$conn){
         $query = "SELECT comment FROM comments WHERE username ='$username'";
         $result = $conn->query($query);
 
