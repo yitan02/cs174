@@ -5,6 +5,7 @@
     require_once 'login.php';
 
     define("COL_SIZE",1); 
+    define("NO_DATA",0); 
     define('WEEK_IN_SEC', 60*60*24*7);
 
     //create new mysql connection
@@ -20,19 +21,19 @@
         <link rel="stylesheet" type="text/css" href="style.css">
         <h1>Hello!</h1>
         <form method = "post" action="hw5.php">
-            <label for ="name">Name:</label>
-            <input type="text" id="name" name="name"><br><br>
-            <label for ="username">Username:</label>
-            <input type="text" id="username" name="username"><br><br>
-            <label for ="password">Password:</label>
-            <input type="text" id="password" name="password"><br><br>
+            <label for ="register_name">Name:</label><br>
+            <input type="text" id="register_name" name="register_name"><br><br>
+            <label for ="register_username">Username:</label><br>
+            <input type="text" id="register_username" name="register_username"><br><br>
+            <label for ="register_password">Password:</label><br>
+            <input type="text" id="register_password" name="register_password"><br><br>
             <button>Sign Up</button>
         </form>
 
         <form method = "post" action="hw5.php">
-            <label for ="username_login">Username:</label>
+            <label for ="username_login">Username:</label><br>
             <input type="text" id="username_login" name="username_login"><br><br>
-            <label for ="password_login">Password:</label>
+            <label for ="password_login">Password:</label><br>
             <input type="text" id="password_login" name="password_login"><br><br>
             <button>Login</button>
         </form>
@@ -42,11 +43,11 @@
     }
     
     //sign up
-    if(!empty($_POST['name']) && !empty($_POST['username']) && !empty($_POST['password'])){
+    if(!empty($_POST['register_name']) && !empty($_POST['register_username']) && !empty($_POST['register_password'])){
         //sanitize inputs
-        $name = mysql_entities_fix_string($conn,$_POST['name']);
-        $username = mysql_entities_fix_string($conn,$_POST['username']);
-        $password = mysql_entities_fix_string($conn,$_POST['password']);
+        $name = mysql_entities_fix_string($conn,$_POST['register_name']);
+        $username = mysql_entities_fix_string($conn,$_POST['register_username']);
+        $password = mysql_entities_fix_string($conn,$_POST['register_password']);
 
         //check if username already exists
         checkUniqueUsername($username, $conn);
@@ -68,7 +69,7 @@
         $query = "SELECT * FROM credentials WHERE username ='$username'";
         $result = $conn->query($query);
 
-        if(!$result){
+        if(!$result || mysqli_num_rows($result) == NO_DATA){
           die (printError());  
         } 
         elseif ($result->num_rows){
@@ -90,8 +91,10 @@
             else{
                 die("Invalid username/password combination");
             }
-        } 
+        }
 
+        //close result
+        $result->close();
     }
 
     if(isset($_COOKIE['name'])){
@@ -102,8 +105,8 @@
         <link rel="stylesheet" type="text/css" href="style.css">
         <h1>Hello $name! </h1>
         <form method = "post" action="hw5.php">
-            <label for ="comment">Comment:</label>
-            <input type="text" id="comment" name="comment">
+            <label for ="comment">Comment:</label><br>
+            <input type="text" id="comment" name="comment"><br><br>
             <button>Add Comment</button>
         </form>
         _END;
@@ -118,6 +121,7 @@
             addComment($name,$comment,$conn);
         }
 
+        //print comments made by user
         printComments($name,$conn);
 
     }
@@ -150,6 +154,8 @@
             die("Username already exists.");
         }
 
+        //close result
+        $result->close();
     }
 
     //insert title and file lines to the database
