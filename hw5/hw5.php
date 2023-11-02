@@ -1,9 +1,6 @@
 <?php
     //questions:
-    //do we need to account for collision with password_hash?
-    //how to sanitize cookie?
-    //where to set and destroy the cookie?
-
+    //do i need to sanitize $_SERVER?
 
     require_once 'login.php';
 
@@ -16,32 +13,34 @@
     //check if error connection 
     if($conn->connect_error) die (printError());
 
-    echo <<<_END
-    <html>
-    <head><title>Homework 5</title></head><body>
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <h1>Hello!</h1>
-    <form method = "post" action="hw5.php">
-        <label for ="name">Name:</label>
-        <input type="text" id="name" name="name"><br><br>
-        <label for ="username">Username:</label>
-        <input type="text" id="username" name="username"><br><br>
-        <label for ="password">Password:</label>
-        <input type="text" id="password" name="password"><br><br>
-        <button>Sign Up</button>
-    </form>
+    if(!isset($_COOKIE['name'])){
+        echo <<<_END
+        <html>
+        <head><title>Homework 5</title></head><body>
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <h1>Hello!</h1>
+        <form method = "post" action="hw5.php">
+            <label for ="name">Name:</label>
+            <input type="text" id="name" name="name"><br><br>
+            <label for ="username">Username:</label>
+            <input type="text" id="username" name="username"><br><br>
+            <label for ="password">Password:</label>
+            <input type="text" id="password" name="password"><br><br>
+            <button>Sign Up</button>
+        </form>
 
-    <form method = "post" action="hw5.php">
-        <label for ="username_login">Username:</label>
-        <input type="text" id="username_login" name="username_login"><br><br>
-        <label for ="password_login">Password:</label>
-        <input type="text" id="password_login" name="password_login"><br><br>
-        <button>Login</button>
-    </form>
-    _END;
+        <form method = "post" action="hw5.php">
+            <label for ="username_login">Username:</label>
+            <input type="text" id="username_login" name="username_login"><br><br>
+            <label for ="password_login">Password:</label>
+            <input type="text" id="password_login" name="password_login"><br><br>
+            <button>Login</button>
+        </form>
+        _END;
 
-    echo "</body></html>";
-
+        echo "</body></html>";
+    }
+    
     //sign up
     if(!empty($_POST['name']) && !empty($_POST['username']) && !empty($_POST['password'])){
         //sanitize inputs
@@ -49,25 +48,17 @@
         $username = mysql_entities_fix_string($conn,$_POST['username']);
         $password = mysql_entities_fix_string($conn,$_POST['password']);
 
-        echo $name . "<br>";
-        echo $username. "<br>";
-        echo $password . "<br>";
-
-        //store name in cookie
-        //storeNameInCookie($name);
+        //check if username already exists
+        checkUniqueUsername($username, $conn);
 
         //hash the password
         $password = password_hash($password, PASSWORD_DEFAULT);
 
-        //check if username already exists
-        checkUniqueUsername($username, $conn);
-
         //add user to database
-        addUser($username, $password, $conn);
+        addUser($name, $username, $password, $conn);
+
+        echo "You may now log in with your credentials.";
     }
-    // else{
-    //     die("Please fill in all fields.");
-    // }
 
     //login
     if(!empty($_POST['username_login']) && !empty($_POST['password_login'])){
@@ -83,43 +74,18 @@
         elseif ($result->num_rows){
             $row = $result->fetch_array(MYSQLI_NUM);
             $result->close();
-            $stored_username = $row[1];
-            $stored_token = $row[2];
+            $stored_name = $row[1];
+            $stored_username = $row[2];
+            $stored_token = $row[3];
 
             //check if credentials are correct
             if($username == $stored_username && password_verify($password, $stored_token)){
-                echo "you are now logged in!";
+                //set cookie
+                storeNameInCookie($stored_name);
 
-                // if(isset($_COOKIE['name'])){
-                //     $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
-                //     echo <<<_END
-                //     <html>
-                //     <body>
-                //     <link rel="stylesheet" type="text/css" href="style.css">
-                //     <h1>Hello! $name, you are logged in! </h1>
-                //     <form method = "post" action="hw5.php">
-                //         <label for ="comment">Comment:</label>
-                //         <input type="text" id="comment" name="comment"><br><br>
-                //         <button>Add Comment</button>
-                //     </form>
-                //     _END;
+                //refresh page so it can render logged in page
+                header("Location: " . $_SERVER['REQUEST_URI']);
                 
-                //     echo "</body></html>";
-
-                //     if (!empty($_POST['comment'])) {
-                //         //sanitize comment
-                //         //$comment = mysql_entities_fix_string($conn,$_POST['comment']);
-
-                //         echo "hello";
-
-                //         //add comment to database
-                //         //addComment($username,$comment,$conn);
-                //     }
-
-                //     //printComments($username,$conn);
-
-
-                // }
             }
             else{
                 die("Invalid username/password combination");
@@ -134,10 +100,10 @@
         <html>
         <body>
         <link rel="stylesheet" type="text/css" href="style.css">
-        <h1>Hello! $name, you are logged in! </h1>
+        <h1>Hello $name! </h1>
         <form method = "post" action="hw5.php">
             <label for ="comment">Comment:</label>
-            <input type="text" id="comment" name="comment"><br><br>
+            <input type="text" id="comment" name="comment">
             <button>Add Comment</button>
         </form>
         _END;
@@ -149,11 +115,10 @@
             $comment = mysql_entities_fix_string($conn,$_POST['comment']);
 
             //add comment to database
-            addComment($username,$comment,$conn);
+            addComment($name,$comment,$conn);
         }
 
-        printComments($username,$conn);
-
+        printComments($name,$conn);
 
     }
 
@@ -174,13 +139,13 @@
         return $conn->real_escape_string($string);
     }
 
+    //check that the username does not already exist in the database
     function checkUniqueUsername($username, $conn){
         $query = "SELECT username FROM credentials WHERE username = '$username'";
         $result = $conn->query($query);
         $num_rows = mysqli_num_rows($result);
 
-        echo "num of existing name:" . $num_rows . "<br>";
-
+        //if result returns more than 0 rows, then username exists
         if($num_rows > 0){
             die("Username already exists.");
         }
@@ -188,8 +153,19 @@
     }
 
     //insert title and file lines to the database
-    function addUser($username, $password, $conn){
-        $query = "INSERT INTO credentials (username,token) VALUES('$username','$password')";
+    function addUser($name, $username, $password, $conn){
+        $query = "INSERT INTO credentials (name, username,token) VALUES('$name','$username','$password')";
+        $result = $conn->query($query);
+
+        //check if query failed
+        if(!$result){
+            printError();
+        }
+    }
+
+    //add comment to database
+    function addComment($name, $comment, $conn){
+        $query = "INSERT INTO comments (name,comment) VALUES('$name','$comment')";
         $result = $conn->query($query);
 
         //check if query failed
@@ -197,30 +173,18 @@
             printError();
         }
         else{
-            echo "Insert succuess!";
+            echo "Insert success!";
         }
     }
 
-    function addComment($username, $comment, $conn){
-        $query = "INSERT INTO comments (username,comment) VALUES('$username','$comment')";
-        $result = $conn->query($query);
-
-        //check if query failed
-        if(!$result){
-            printError();
-        }
-        else{
-            echo "Insert succuess!";
-        }
-    }
-
+    //function to store name in cookie
     function storeNameInCookie($name){
         setcookie('name', $name, time() + WEEK_IN_SEC, '/');
     }
 
-    //prints out the data table
-    function printComments($username,$conn){
-        $query = "SELECT comment FROM comments WHERE username ='$username'";
+    //prints out the data tabale
+    function printComments($name,$conn){
+        $query = "SELECT comment FROM comments WHERE name ='$name'";
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
