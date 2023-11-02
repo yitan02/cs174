@@ -6,7 +6,7 @@
 
     define("COL_SIZE",1); 
     define("NO_DATA",0); 
-    define('WEEK_IN_SEC', 60*60*24*7);
+    define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
 
     //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
@@ -14,6 +14,7 @@
     //check if error connection 
     if($conn->connect_error) die (printError());
 
+    //sign up and login forms
     if(!isset($_COOKIE['name'])){
         echo <<<_END
         <html>
@@ -66,6 +67,8 @@
         //sanitize inputs
         $username = mysql_entities_fix_string($conn,$_POST['username_login']);
         $password = mysql_entities_fix_string($conn,$_POST['password_login']);
+
+        //query credentials
         $query = "SELECT * FROM credentials WHERE username ='$username'";
         $result = $conn->query($query);
 
@@ -84,6 +87,9 @@
                 //set cookie
                 storeNameInCookie($stored_name);
 
+                //for query purpose set cookie for username too
+                storeUsernameInCookie($username);
+
                 //refresh page so it can render logged in page
                 header("Location: " . $_SERVER['REQUEST_URI']);
                 
@@ -97,8 +103,12 @@
         $result->close();
     }
 
+    //logged in
     if(isset($_COOKIE['name'])){
+        //sanitize the cookies
         $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
+        $username = mysql_entities_fix_string($conn, $_COOKIE['username']);
+
         echo <<<_END
         <html>
         <body>
@@ -113,16 +123,17 @@
     
         echo "</body></html>";
 
+        //check if user has entered a comment
         if (!empty($_POST['comment'])) {
             //sanitize comment
             $comment = mysql_entities_fix_string($conn,$_POST['comment']);
 
             //add comment to database
-            addComment($name,$comment,$conn);
+            addComment($username,$comment,$conn);
         }
 
         //print comments made by user
-        printComments($name,$conn);
+        printComments($username,$conn);
 
     }
 
@@ -170,16 +181,13 @@
     }
 
     //add comment to database
-    function addComment($name, $comment, $conn){
-        $query = "INSERT INTO comments (name,comment) VALUES('$name','$comment')";
+    function addComment($username, $comment, $conn){
+        $query = "INSERT INTO comments (username,comment) VALUES('$username','$comment')";
         $result = $conn->query($query);
 
         //check if query failed
         if(!$result){
             printError();
-        }
-        else{
-            echo "Insert success!";
         }
     }
 
@@ -188,9 +196,14 @@
         setcookie('name', $name, time() + WEEK_IN_SEC, '/');
     }
 
+    //function to store username in cookie
+    function storeUsernameInCookie($username){
+        setcookie('username', $username, time() + WEEK_IN_SEC, '/');
+    }
+
     //prints out the data tabale
-    function printComments($name,$conn){
-        $query = "SELECT comment FROM comments WHERE name ='$name'";
+    function printComments($username,$conn){
+        $query = "SELECT comment FROM comments WHERE username ='$username'";
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
@@ -203,7 +216,8 @@
             $result->data_seek($j);
             $row = $result->fetch_array(MYSQLI_NUM);
             echo "<tr>";
-            for ($k = 0 ; $k < COL_SIZE ; ++$k) echo "<td><br>$row[$k]</td>";
+            for ($k = 0 ; $k < COL_SIZE ; ++$k) 
+            echo "<td><br>$row[$k]</td>";
             echo "</tr>";
         }
         echo "</table>";
