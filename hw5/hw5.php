@@ -90,7 +90,7 @@
                 //set cookie for user id
                 storeUserIdInCookie($user_id);
 
-                //refresh page so it can render logged in page
+                //refresh page so it can render home page
                 header("Location: " . $_SERVER['REQUEST_URI']);
                 
             }
@@ -100,7 +100,6 @@
         }
 
     }
-
 
     //logged in
     if(isset($_COOKIE['name'])){
