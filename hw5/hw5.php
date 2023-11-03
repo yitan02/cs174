@@ -18,21 +18,23 @@
         <head><title>Homework 5</title></head><body>
         <link rel="stylesheet" type="text/css" href="style.css">
         <h1>Hello!</h1>
+        <h2>Sign Up</h2>
         <form method = "post" action="hw5.php">
             <label for ="register_name">Name:</label><br>
             <input type="text" id="register_name" name="register_name"><br><br>
             <label for ="register_username">Username:</label><br>
             <input type="text" id="register_username" name="register_username"><br><br>
             <label for ="register_password">Password:</label><br>
-            <input type="text" id="register_password" name="register_password"><br><br>
+            <input type="password" id="register_password" name="register_password"><br><br>
             <button>Sign Up</button>
         </form>
 
+        <h2>Login</h2>
         <form method = "post" action="hw5.php">
             <label for ="username_login">Username:</label><br>
             <input type="text" id="username_login" name="username_login"><br><br>
             <label for ="password_login">Password:</label><br>
-            <input type="text" id="password_login" name="password_login"><br><br>
+            <input type="password" id="password_login" name="password_login"><br><br>
             <button>Login</button>
         </form>
         _END;
@@ -97,9 +99,8 @@
             }
         }
 
-        //close result
-        //$result->close();
     }
+
 
     //logged in
     if(isset($_COOKIE['name'])){
@@ -161,7 +162,7 @@
         $num_rows = mysqli_num_rows($result);
 
         //if result returns more than 0 rows, then username exists
-        if($num_rows > 0){
+        if($num_rows > NO_DATA){
             die("Username already exists.");
         }
 
@@ -229,5 +230,4 @@
         $conn->close();
 
     }
-
 ?>
