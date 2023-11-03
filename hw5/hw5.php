@@ -1,7 +1,4 @@
 <?php
-    //questions:
-    //do i need to sanitize $_SERVER?
-
     require_once 'login.php';
 
     define("COL_SIZE",1); 
@@ -78,17 +75,18 @@
         elseif ($result->num_rows){
             $row = $result->fetch_array(MYSQLI_NUM);
             $result->close();
+            $user_id = $row[0];
             $stored_name = $row[1];
             $stored_username = $row[2];
             $stored_token = $row[3];
 
             //check if credentials are correct
             if($username == $stored_username && password_verify($password, $stored_token)){
-                //set cookie
+                //set cookie for name of the user
                 storeNameInCookie($stored_name);
 
-                //for query purpose set cookie for username too
-                storeUsernameInCookie($username);
+                //set cookie for user id
+                storeUserIdInCookie($user_id);
 
                 //refresh page so it can render logged in page
                 header("Location: " . $_SERVER['REQUEST_URI']);
@@ -100,41 +98,43 @@
         }
 
         //close result
-        $result->close();
+        //$result->close();
     }
 
     //logged in
     if(isset($_COOKIE['name'])){
-        //sanitize the cookies
-        $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
-        $username = mysql_entities_fix_string($conn, $_COOKIE['username']);
+        if(isset($_COOKIE['user_id'])){
+            //sanitize the cookies
+            $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
+            $user_id = mysql_entities_fix_string($conn, $_COOKIE['user_id']);
 
-        echo <<<_END
-        <html>
-        <body>
-        <link rel="stylesheet" type="text/css" href="style.css">
-        <h1>Hello $name! </h1>
-        <form method = "post" action="hw5.php">
-            <label for ="comment">Comment:</label><br>
-            <input type="text" id="comment" name="comment"><br><br>
-            <button>Add Comment</button>
-        </form>
-        _END;
-    
-        echo "</body></html>";
+            echo <<<_END
+            <html>
+            <body>
+            <link rel="stylesheet" type="text/css" href="style.css">
+            <title>Homework 5</title></head>
+            <h1>Hello $name! </h1>
+            <form method = "post" action="hw5.php">
+                <label for ="comment">Comment:</label><br>
+                <input type="text" id="comment" name="comment"><br><br>
+                <button>Add Comment</button>
+            </form>
+            _END;
+        
+            echo "</body></html>";
 
-        //check if user has entered a comment
-        if (!empty($_POST['comment'])) {
-            //sanitize comment
-            $comment = mysql_entities_fix_string($conn,$_POST['comment']);
+            //check if user has entered a comment
+            if (!empty($_POST['comment'])) {
+                //sanitize comment
+                $comment = mysql_entities_fix_string($conn,$_POST['comment']);
 
-            //add comment to database
-            addComment($username,$comment,$conn);
+                //add comment to database
+                addComment($user_id,$comment,$conn);
+            }
+
+            //print comments made by user
+            printComments($user_id,$conn);
         }
-
-        //print comments made by user
-        printComments($username,$conn);
-
     }
 
 
@@ -181,8 +181,8 @@
     }
 
     //add comment to database
-    function addComment($username, $comment, $conn){
-        $query = "INSERT INTO comments (username,comment) VALUES('$username','$comment')";
+    function addComment($user_id, $comment, $conn){
+        $query = "INSERT INTO comments (uid,comment) VALUES('$user_id','$comment')";
         $result = $conn->query($query);
 
         //check if query failed
@@ -197,13 +197,13 @@
     }
 
     //function to store username in cookie
-    function storeUsernameInCookie($username){
-        setcookie('username', $username, time() + WEEK_IN_SEC, '/');
+    function storeUserIdInCookie($user_id){
+        setcookie('user_id', $user_id, time() + WEEK_IN_SEC, '/');
     }
 
     //prints out the data tabale
-    function printComments($username,$conn){
-        $query = "SELECT comment FROM comments WHERE username ='$username'";
+    function printComments($user_id,$conn){
+        $query = "SELECT comment FROM comments WHERE uid ='$user_id'";
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
