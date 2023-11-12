@@ -1,6 +1,13 @@
 <?php
+    //questions:
+    //how to use mysql_entities on file's tmp_name because it doesnt work?
+    //do we need to auto destroy?
+
     session_start();
     require_once 'login.php';
+
+    define("COL_SIZE",2); 
+    define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
 
     //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
@@ -21,8 +28,8 @@
         <form method="post" action="">
             <input type="submit" name="logout" value="Logout">
         </form>
-        <form method = "post" action="home.php">
-            <label for ="thread_name">Title:</label>
+        <form method = "post" action="home.php" enctype="multipart/form-data">
+            <label for ="thread_name">Thread Name:</label>
             <input type="text" id="thread_name" name="thread_name"><br><br>
             <label for="file"> Select File: </label><br>
             <input id="file" type="file" name="filename" size="10"><br><br>
@@ -34,7 +41,7 @@
             $sanitized_lines = "";
     
             //sanitize and read the uploaded file
-            $temp = mysql_entities_fix_string($_FILES['filename']['tmp_name']);
+            $temp = htmlentities($_FILES['filename']['tmp_name']);
     
             //get file type
             $file_type = $_FILES['filename']['type'];
@@ -54,7 +61,7 @@
                             $line = fgets($file);
                             if($line !== false){
                                 //sanitize the line
-                                $line = mysql_entities_fix_string($line);
+                                $line = mysql_entities_fix_string($conn, $line);
                                 //append sanitized line to file line
                                 $sanitized_lines .= $line;
                             }
@@ -72,7 +79,7 @@
                         }
                         else{
                             //store data if thread name is not empty
-                            storeData($thread_name, $sanitized_lines, $conn);
+                            storeData($user_id, $thread_name, $sanitized_lines, $conn);
                         }
     
                     }
@@ -90,14 +97,24 @@
                 echo "File was unable to open.";
             }
         }
-    
-        echo "</body></html>";
 
+        echo "</body></html>";
 
     }
     else{
         echo "Please <a href='main.php'> click here</a> to log in.";
     }
+
+    if(isset($_SESSION['user_id'])){
+        $user_id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
+
+        printThreads($user_id,$conn);
+    }
+
+    if(isset($_POST['logout'])){
+        destroy_session_and_data();
+    }
+
 
     function printError(){
         echo "Please try again.";
@@ -115,8 +132,8 @@
     }
 
     //insert thread name and file lines to the database
-    function storeData($thread_name,$file_lines,$conn){
-        $query = "INSERT INTO midterm2 (thread_name,content) VALUES('$thead_name','$file_lines')";
+    function storeData($user_id,$thread_name,$file_lines,$conn){
+        $query = "INSERT INTO threads (user_id, thread_name,content) VALUES('$user_id','$thread_name','$file_lines')";
         $result = $conn->query($query);
 
         //check if query failed
@@ -124,7 +141,44 @@
             printError("Please try again.");
         }
         else{
-            echo "Insert succuess!";
+            echo "Insert success!";
         }
+    }
+
+    //prints out the data tabale
+    function printThreads($user_id,$conn){
+        $query = "SELECT thread_name,content FROM threads WHERE user_id ='$user_id'";
+        $result = $conn->query($query);
+
+        $rows = $result->num_rows;
+        echo "<table>
+                <tr>
+                    <th>Thread Name</th>
+                    <th>Content</th>
+                </tr>";
+        for ($j = 0 ; $j < $rows ; ++$j)
+        {
+            $result->data_seek($j);
+            $row = $result->fetch_array(MYSQLI_NUM);
+            echo "<tr>";
+            for ($k = 0 ; $k < COL_SIZE ; ++$k) 
+            echo "<td><br>$row[$k]</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+
+        //close result
+        $result->close();
+
+        //close connection
+        $conn->close();
+
+    }
+
+    function destroy_session_and_data(){
+        $_SESSION = array();
+        setcookie(session_name(),'',time() - WEEK_IN_SEC, '/');
+        session_destroy();
+        header("Location: /cs174/midterm2/main.php");
     }
 ?>
