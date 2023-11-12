@@ -1,12 +1,9 @@
 <?php
-    //questions:
-    //how to use mysql_entities on file's tmp_name because it doesnt work?
-    //do we need to auto destroy?
-
     session_start();
     require_once 'login.php';
 
     define("COL_SIZE",2); 
+    define("NO_DATA",0); 
     define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
 
     //create new mysql connection
@@ -15,107 +12,134 @@
     //check if error connection 
     if($conn->connect_error) die (printError());
 
-    if(isset($_SESSION['user_id'])){
-        $user_id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
-        $name = mysql_entities_fix_string($conn, $_SESSION['name']);
-
+    //sign up and login forms
+    if(!isset($_COOKIE['name'])){
         echo <<<_END
         <html>
-        <body>
+        <head><title>Midterm 2</title></head><body>
         <link rel="stylesheet" type="text/css" href="style.css">
-        <title>Home</title></head>
-        <h1>Hello $name! </h1>
-        <form method="post" action="">
-            <input type="submit" name="logout" value="Logout">
+        <h1>Hello!</h1>
+        <h2>Sign Up</h2>
+        <form method = "post" action="main.php">
+            <label for ="register_name">Name:</label><br>
+            <input type="text" id="register_name" name="register_name"><br><br>
+            <label for ="register_username">Username:</label><br>
+            <input type="text" id="register_username" name="register_username"><br><br>
+            <label for ="register_password">Password:</label><br>
+            <input type="password" id="register_password" name="register_password"><br><br>
+            <button>Sign Up</button>
         </form>
-        <form method = "post" action="home.php" enctype="multipart/form-data">
-            <label for ="thread_name">Thread Name:</label>
-            <input type="text" id="thread_name" name="thread_name"><br><br>
-            <label for="file"> Select File: </label><br>
-            <input id="file" type="file" name="filename" size="10"><br><br>
-            <button>Submit</button>
+
+        <h2>Login</h2>
+        <form method = "post" action="main.php">
+            <label for ="username_login">Username:</label><br>
+            <input type="text" id="username_login" name="username_login"><br><br>
+            <label for ="password_login">Password:</label><br>
+            <input type="password" id="password_login" name="password_login"><br><br>
+            <button>Login</button>
         </form>
         _END;
 
-        if ($_FILES){
-            $sanitized_lines = "";
+        echo "</body></html>";
+    }
     
-            //sanitize and read the uploaded file
-            $temp = htmlentities($_FILES['filename']['tmp_name']);
-    
-            //get file type
-            $file_type = $_FILES['filename']['type'];
-    
-            $file = fopen($temp,'r');
-            //check if file was able to open
-            if($file){
-                //get file size
-                $file_size = $_FILES['filename']['size'];
-    
-                //check if empty file
-                if($file_size != 0){
-                    //check if file is a .txt file
-                    if($file_type == "text/plain"){
-                        //get lines of the file while it is not the end of the file
-                        while(!feof($file)){
-                            $line = fgets($file);
-                            if($line !== false){
-                                //sanitize the line
-                                $line = mysql_entities_fix_string($conn, $line);
-                                //append sanitized line to file line
-                                $sanitized_lines .= $line;
-                            }
-                        }
-    
-                        //close the file
-                        fclose($file);
-    
-                        //get user input thread name and sanitize it
-                        $thread_name = mysql_entities_fix_string($conn,$_POST['thread_name']); 
-    
-                        //Check if empty thread name
-                        if($thread_name == ""){
-                            echo "Thread name is empty. Please enter a thread name.<br>";
-                        }
-                        else{
-                            //store data if thread name is not empty
-                            storeData($user_id, $thread_name, $sanitized_lines, $conn);
-                        }
-    
-                    }
-                    else{
-                        echo "File is not a text/plain file.";
-                    }
-                }
-                else{
-                    echo "File is empty.";
-                }
-    
+    //sign up
+    if(!empty($_POST['register_name']) && !empty($_POST['register_username']) && !empty($_POST['register_password'])){
+        //sanitize inputs
+        $name = mysql_entities_fix_string($conn,$_POST['register_name']);
+        $username = mysql_entities_fix_string($conn,$_POST['register_username']);
+        $password = mysql_entities_fix_string($conn,$_POST['register_password']);
+
+        //check if username already exists
+        checkUniqueUsername($username, $conn);
+
+        //hash the password
+        $password = password_hash($password, PASSWORD_DEFAULT);
+
+        //add user to database
+        addUser($name, $username, $password, $conn);
+
+        echo "You may now log in with your credentials.";
+    }
+
+    //login
+    if(!empty($_POST['username_login']) && !empty($_POST['password_login'])){
+        //sanitize inputs
+        $username = mysql_entities_fix_string($conn,$_POST['username_login']);
+        $password = mysql_entities_fix_string($conn,$_POST['password_login']);
+
+        //query credentials
+        $query = "SELECT * FROM credentials WHERE username ='$username'";
+        $result = $conn->query($query);
+
+        if(!$result || mysqli_num_rows($result) == NO_DATA){
+          die (printError());  
+        } 
+        elseif ($result->num_rows){
+            $row = $result->fetch_array(MYSQLI_NUM);
+            $result->close();
+            $user_id = $row[0];
+            $stored_name = $row[1];
+            $stored_username = $row[2];
+            $stored_token = $row[3];
+
+            //check if credentials are correct
+            if($username == $stored_username && password_verify($password, $stored_token)){
+                //store name of the user
+                $_SESSION['name'] = $stored_name;
+
+                //store user id
+                $_SESSION['user_id'] = $user_id;
+
+                //refresh page so it can render home page
+                header("Location: /cs174/midterm2/home.php");
+                
             }
-            //print out error message if file was unable to open
-            else {
-                echo "File was unable to open.";
+            else{
+                die("Invalid username/password combination");
             }
         }
 
-        echo "</body></html>";
-
-    }
-    else{
-        echo "Please <a href='main.php'> click here</a> to log in.";
     }
 
-    if(isset($_SESSION['user_id'])){
-        $user_id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
+    //logged in
+    // if(isset($_COOKIE['name'])){
+    //     if(isset($_COOKIE['user_id'])){
+    //         //sanitize the cookies
+    //         $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
+    //         $user_id = mysql_entities_fix_string($conn, $_COOKIE['user_id']);
 
-        printThreads($user_id,$conn);
-    }
+    //         echo <<<_END
+    //         <html>
+    //         <body>
+    //         <link rel="stylesheet" type="text/css" href="style.css">
+    //         <title>Homework 5</title></head>
+    //         <h1>Hello $name! </h1>
+    //         <form method = "post" action="hw5.php">
+    //             <label for ="comment">Comment:</label><br>
+    //             <input type="text" id="comment" name="comment"><br><br>
+    //             <button>Add Comment</button>
+    //         </form>
+    //         _END;
+        
+    //         echo "</body></html>";
 
-    if(isset($_POST['logout'])){
-        destroy_session_and_data();
-    }
+    //         //check if user has entered a comment
+    //         if (!empty($_POST['comment'])) {
+    //             //sanitize comment
+    //             $comment = mysql_entities_fix_string($conn,$_POST['comment']);
+
+    //             //add comment to database
+    //             addComment($user_id,$comment,$conn);
+    //         }
+
+    //         //print comments made by user
+    //         printComments($user_id,$conn);
+    //     }
+    // }
 
 
+    //for printing error messages
     function printError(){
         echo "Please try again.";
     }
@@ -131,30 +155,62 @@
         return $conn->real_escape_string($string);
     }
 
-    //insert thread name and file lines to the database
-    function storeData($user_id,$thread_name,$file_lines,$conn){
-        $query = "INSERT INTO threads (user_id, thread_name,content) VALUES('$user_id','$thread_name','$file_lines')";
+    //check that the username does not already exist in the database
+    function checkUniqueUsername($username, $conn){
+        $query = "SELECT username FROM credentials WHERE username = '$username'";
+        $result = $conn->query($query);
+        $num_rows = mysqli_num_rows($result);
+
+        //if result returns more than 0 rows, then username exists
+        if($num_rows > NO_DATA){
+            die("Username already exists.");
+        }
+
+        //close result
+        $result->close();
+    }
+
+    //insert title and file lines to the database
+    function addUser($name, $username, $password, $conn){
+        $query = "INSERT INTO credentials (name, username,token) VALUES('$name','$username','$password')";
         $result = $conn->query($query);
 
         //check if query failed
         if(!$result){
-            printError("Please try again.");
-        }
-        else{
-            echo "Insert success!";
+            printError();
         }
     }
 
+    //add comment to database
+    function addComment($user_id, $comment, $conn){
+        $query = "INSERT INTO comments (uid,comment) VALUES('$user_id','$comment')";
+        $result = $conn->query($query);
+
+        //check if query failed
+        if(!$result){
+            printError();
+        }
+    }
+
+    //function to store name in cookie
+    function storeNameInCookie($name){
+        setcookie('name', $name, time() + WEEK_IN_SEC, '/');
+    }
+
+    //function to store username in cookie
+    function storeUserIdInCookie($user_id){
+        setcookie('user_id', $user_id, time() + WEEK_IN_SEC, '/');
+    }
+
     //prints out the data tabale
-    function printThreads($user_id,$conn){
-        $query = "SELECT thread_name,content FROM threads WHERE user_id ='$user_id'";
+    function printComments($user_id,$conn){
+        $query = "SELECT comment FROM comments WHERE uid ='$user_id'";
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
         echo "<table>
                 <tr>
-                    <th>Thread Name</th>
-                    <th>Content</th>
+                    <th>Comments</th>
                 </tr>";
         for ($j = 0 ; $j < $rows ; ++$j)
         {
@@ -173,12 +229,5 @@
         //close connection
         $conn->close();
 
-    }
-
-    function destroy_session_and_data(){
-        $_SESSION = array();
-        setcookie(session_name(),'',time() - WEEK_IN_SEC, '/');
-        session_destroy();
-        header("Location: /cs174/midterm2/main.php");
     }
 ?>
