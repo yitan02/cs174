@@ -92,7 +92,7 @@
                 $_SESSION['user_id'] = $user_id;
 
                 //refresh page so it can render home page
-                header("Location: /cs174/midterm2/continue.php");
+                header("Location: /cs174/midterm2/home.php");
                 
             }
             else{
