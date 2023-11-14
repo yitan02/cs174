@@ -5,6 +5,7 @@
     define("COL_SIZE",2); 
     define("NO_DATA",0); 
     define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
+    define("SESSION_VAR", 1);
 
     //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
@@ -60,6 +61,7 @@
         addUser($name, $username, $password, $conn);
 
         echo "You may now log in with your credentials.";
+
     }
 
     //login
@@ -91,6 +93,12 @@
                 //store user id
                 $_SESSION['user_id'] = $user_id;
 
+                //regenerate new session id each time user logs in
+                if(!isset($_SESSION['initiated'])){
+                    session_regenerate_id();
+                    $_SESSION['initiated'] = SESSION_VAR;
+                }
+
                 //refresh page so it can render home page
                 header("Location: /cs174/midterm2/home.php");
                 
@@ -101,42 +109,6 @@
         }
 
     }
-
-    //logged in
-    // if(isset($_COOKIE['name'])){
-    //     if(isset($_COOKIE['user_id'])){
-    //         //sanitize the cookies
-    //         $name = mysql_entities_fix_string($conn, $_COOKIE['name']);
-    //         $user_id = mysql_entities_fix_string($conn, $_COOKIE['user_id']);
-
-    //         echo <<<_END
-    //         <html>
-    //         <body>
-    //         <link rel="stylesheet" type="text/css" href="style.css">
-    //         <title>Homework 5</title></head>
-    //         <h1>Hello $name! </h1>
-    //         <form method = "post" action="hw5.php">
-    //             <label for ="comment">Comment:</label><br>
-    //             <input type="text" id="comment" name="comment"><br><br>
-    //             <button>Add Comment</button>
-    //         </form>
-    //         _END;
-        
-    //         echo "</body></html>";
-
-    //         //check if user has entered a comment
-    //         if (!empty($_POST['comment'])) {
-    //             //sanitize comment
-    //             $comment = mysql_entities_fix_string($conn,$_POST['comment']);
-
-    //             //add comment to database
-    //             addComment($user_id,$comment,$conn);
-    //         }
-
-    //         //print comments made by user
-    //         printComments($user_id,$conn);
-    //     }
-    // }
 
 
     //for printing error messages
@@ -181,53 +153,7 @@
         }
     }
 
-    //add comment to database
-    function addComment($user_id, $comment, $conn){
-        $query = "INSERT INTO comments (uid,comment) VALUES('$user_id','$comment')";
-        $result = $conn->query($query);
+    //close connection
+    $conn->close();
 
-        //check if query failed
-        if(!$result){
-            printError();
-        }
-    }
-
-    //function to store name in cookie
-    function storeNameInCookie($name){
-        setcookie('name', $name, time() + WEEK_IN_SEC, '/');
-    }
-
-    //function to store username in cookie
-    function storeUserIdInCookie($user_id){
-        setcookie('user_id', $user_id, time() + WEEK_IN_SEC, '/');
-    }
-
-    //prints out the data tabale
-    function printComments($user_id,$conn){
-        $query = "SELECT comment FROM comments WHERE uid ='$user_id'";
-        $result = $conn->query($query);
-
-        $rows = $result->num_rows;
-        echo "<table>
-                <tr>
-                    <th>Comments</th>
-                </tr>";
-        for ($j = 0 ; $j < $rows ; ++$j)
-        {
-            $result->data_seek($j);
-            $row = $result->fetch_array(MYSQLI_NUM);
-            echo "<tr>";
-            for ($k = 0 ; $k < COL_SIZE ; ++$k) 
-            echo "<td><br>$row[$k]</td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-
-        //close result
-        $result->close();
-
-        //close connection
-        $conn->close();
-
-    }
 ?>
