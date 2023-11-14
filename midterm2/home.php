@@ -2,6 +2,7 @@
     //questions:
     //how to use mysql_entities on file's tmp_name because it doesnt work?
     //do we need to auto destroy?
+    //does it have to be first two lines of the file or is it ok as long as it's some charas hidden
 
     session_start();
     require_once 'login.php';
@@ -23,6 +24,7 @@
         <html>
         <body>
         <link rel="stylesheet" type="text/css" href="style.css">
+ 
         <title>Home</title></head>
         <h1>Hello $name! </h1>
         <form method="post" action="">
@@ -35,6 +37,12 @@
             <input id="file" type="file" name="filename" size="10"><br><br>
             <button>Submit</button>
         </form>
+
+        <form method="post" action="">
+            <input type="submit" name="Expand" value="Expand">
+            <input type="submit" name="Collapse" value="Collapse">
+        </form>
+
         _END;
 
         if ($_FILES){
@@ -90,7 +98,6 @@
                 else{
                     echo "File is empty.";
                 }
-    
             }
             //print out error message if file was unable to open
             else {
@@ -108,7 +115,7 @@
     if(isset($_SESSION['user_id'])){
         $user_id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
 
-        printThreads($user_id,$conn);
+        printThreads($user_id, $conn);
     }
 
     if(isset($_POST['logout'])){
@@ -138,14 +145,14 @@
 
         //check if query failed
         if(!$result){
-            printError("Please try again.");
+            printError();
         }
         else{
             echo "Insert success!";
         }
     }
 
-    //prints out the data tabale
+    //prints out the data table
     function printThreads($user_id,$conn){
         $query = "SELECT thread_name,content FROM threads WHERE user_id ='$user_id'";
         $result = $conn->query($query);
@@ -153,16 +160,20 @@
         $rows = $result->num_rows;
         echo "<table>
                 <tr>
-                    <th>Thread Name</th>
-                    <th>Content</th>
+                    <th class='thread-name-column'>Thread Name</th>
+                    <th class='content-column'>Content</th>
                 </tr>";
         for ($j = 0 ; $j < $rows ; ++$j)
         {
             $result->data_seek($j);
             $row = $result->fetch_array(MYSQLI_NUM);
+            if(!isset($_POST['Expand'])){
+                $row[1] = substr($row[1], 0, 100);
+            }
             echo "<tr>";
             for ($k = 0 ; $k < COL_SIZE ; ++$k) 
-            echo "<td><br>$row[$k]</td>";
+                echo "<td><br>$row[$k]</td>";
+
             echo "</tr>";
         }
         echo "</table>";
@@ -175,6 +186,7 @@
 
     }
 
+    //destroy session
     function destroy_session_and_data(){
         $_SESSION = array();
         setcookie(session_name(),'',time() - WEEK_IN_SEC, '/');
