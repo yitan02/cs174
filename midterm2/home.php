@@ -1,14 +1,11 @@
 <?php
-    //questions:
-    //how to use mysql_entities on file's tmp_name because it doesnt work?
-    //do we need to auto destroy?
-    //does it have to be first two lines of the file or is it ok as long as it's some charas hidden
-
     session_start();
     require_once 'login.php';
 
     define("COL_SIZE",2); 
     define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
+    define("START_CHAR", 0);
+    define("END_CHAR", 100);
 
     //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
@@ -30,14 +27,18 @@
         <form method="post" action="">
             <input type="submit" name="logout" value="Logout">
         </form>
-        <form method = "post" action="home.php" enctype="multipart/form-data">
-            <label for ="thread_name">Thread Name:</label>
-            <input type="text" id="thread_name" name="thread_name"><br><br>
-            <label for="file"> Select File: </label><br>
-            <input id="file" type="file" name="filename" size="10"><br><br>
-            <button>Submit</button>
-        </form>
 
+        <div class="upload-form">
+            <form method = "post" action="home.php" enctype="multipart/form-data">
+                <label for ="thread_name">Thread Name:</label>
+                <input type="text" id="thread_name" name="thread_name"><br><br>
+                <label for="file"> Select File: </label><br>
+                <input id="file" type="file" name="filename" size="10"><br><br>
+                <button>Submit</button>
+            </form>
+        </div>
+
+        <br>
         <form method="post" action="">
             <input type="submit" name="Expand" value="Expand">
             <input type="submit" name="Collapse" value="Collapse">
@@ -48,60 +49,66 @@
         if ($_FILES){
             $sanitized_lines = "";
     
-            //sanitize and read the uploaded file
-            $temp = htmlentities($_FILES['filename']['tmp_name']);
-    
-            //get file type
-            $file_type = $_FILES['filename']['type'];
-    
-            $file = fopen($temp,'r');
-            //check if file was able to open
-            if($file){
-                //get file size
-                $file_size = $_FILES['filename']['size'];
-    
-                //check if empty file
-                if($file_size != 0){
-                    //check if file is a .txt file
-                    if($file_type == "text/plain"){
-                        //get lines of the file while it is not the end of the file
-                        while(!feof($file)){
-                            $line = fgets($file);
-                            if($line !== false){
-                                //sanitize the line
-                                $line = mysql_entities_fix_string($conn, $line);
-                                //append sanitized line to file line
-                                $sanitized_lines .= $line;
+            //sanitize the uploaded file
+            $temp = mysql_entities_fix_string($conn, $_FILES['filename']['tmp_name']);
+
+            //check if file was uploaded
+            if($temp !== ""){
+                //get file type
+                $file_type = $_FILES['filename']['type'];
+        
+                $file = fopen($temp,'r');
+                //check if file was able to open
+                if($file){
+                    //get file size
+                    $file_size = $_FILES['filename']['size'];
+        
+                    //check if empty file
+                    if($file_size != 0){
+                        //check if file is a .txt file
+                        if($file_type == "text/plain"){
+                            //get lines of the file while it is not the end of the file
+                            while(!feof($file)){
+                                $line = fgets($file);
+                                if($line !== false){
+                                    //sanitize the line
+                                    $line = mysql_entities_fix_string($conn, $line);
+                                    //append sanitized line to file line
+                                    $sanitized_lines .= $line;
+                                }
                             }
-                        }
-    
-                        //close the file
-                        fclose($file);
-    
-                        //get user input thread name and sanitize it
-                        $thread_name = mysql_entities_fix_string($conn,$_POST['thread_name']); 
-    
-                        //Check if empty thread name
-                        if($thread_name == ""){
-                            echo "Thread name is empty. Please enter a thread name.<br>";
+        
+                            //close the file
+                            fclose($file);
+        
+                            //get user input thread name and sanitize it
+                            $thread_name = mysql_entities_fix_string($conn,$_POST['thread_name']); 
+        
+                            //Check if empty thread name
+                            if($thread_name == ""){
+                                echo "Thread name is empty. Please enter a thread name.<br>";
+                            }
+                            else{
+                                //store data if thread name is not empty
+                                storeData($user_id, $thread_name, $sanitized_lines, $conn);
+                            }
+        
                         }
                         else{
-                            //store data if thread name is not empty
-                            storeData($user_id, $thread_name, $sanitized_lines, $conn);
+                            echo "File is not a text/plain file.";
                         }
-    
                     }
                     else{
-                        echo "File is not a text/plain file.";
+                        echo "File is empty.";
                     }
                 }
-                else{
-                    echo "File is empty.";
+                //print out error message if file was unable to open
+                else {
+                    echo "File was unable to open.";
                 }
             }
-            //print out error message if file was unable to open
-            else {
-                echo "File was unable to open.";
+            else{
+                echo "Please upload a file.";
             }
         }
 
@@ -134,7 +141,6 @@
 
     //sanitize user input
     function mysql_fix_string($conn,$string){
-        $string = stripslashes($string);
         return $conn->real_escape_string($string);
     }
 
@@ -167,9 +173,12 @@
         {
             $result->data_seek($j);
             $row = $result->fetch_array(MYSQLI_NUM);
+
+            //truncate the strings if expand button is not set
             if(!isset($_POST['Expand'])){
-                $row[1] = substr($row[1], 0, 100);
+                $row[1] = substr($row[1], START_CHAR, END_CHAR);
             }
+
             echo "<tr>";
             for ($k = 0 ; $k < COL_SIZE ; ++$k) 
                 echo "<td><br>$row[$k]</td>";
