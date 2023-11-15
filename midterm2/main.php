@@ -2,9 +2,7 @@
     session_start();
     require_once 'login.php';
 
-    define("COL_SIZE",2); 
     define("NO_DATA",0); 
-    define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
     define("SESSION_VAR", 1);
 
     //create new mysql connection
@@ -14,7 +12,7 @@
     if($conn->connect_error) die (printError());
 
     //sign up and login forms
-    if(!isset($_COOKIE['name'])){
+    if(!isset($_SESSION['name'])){
         echo <<<_END
         <html>
         <head><title>Midterm 2</title></head><body>
