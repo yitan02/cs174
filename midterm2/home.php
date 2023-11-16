@@ -13,6 +13,7 @@
     //check if error connection 
     if($conn->connect_error) die (printError());
 
+    //check if there's a session
     if(isset($_SESSION['user_id'])){
         $user_id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
         $name = mysql_entities_fix_string($conn, $_SESSION['name']);
@@ -117,19 +118,22 @@
     }
     else{
         echo "Please <a href='main.php'> click here</a> to log in.";
+        $conn->close();
     }
 
+    //print table if session is active
     if(isset($_SESSION['user_id'])){
         $user_id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
 
         printThreads($user_id, $conn);
     }
 
+    //destroy session if logout button is clicked
     if(isset($_POST['logout'])){
         destroy_session_and_data();
     }
 
-
+    //generic error msg function
     function printError(){
         echo "Please try again.";
     }
