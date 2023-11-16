@@ -4,6 +4,7 @@
 
     define("NO_DATA",0); 
     define("SESSION_VAR", 1);
+    define("MAX_CHAR", 20);
 
     //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
@@ -49,16 +50,22 @@
         $username = mysql_entities_fix_string($conn,$_POST['register_username']);
         $password = mysql_entities_fix_string($conn,$_POST['register_password']);
 
-        //check if username already exists
-        checkUniqueUsername($username, $conn);
+        //check if username is less than or equal to 20 characters
+        if(strlen($username) <= MAX_CHAR){
+            //check if username already exists
+            checkUniqueUsername($username, $conn);
 
-        //hash the password
-        $password = password_hash($password, PASSWORD_DEFAULT);
+            //hash the password
+            $password = password_hash($password, PASSWORD_DEFAULT);
 
-        //add user to database
-        addUser($name, $username, $password, $conn);
+            //add user to database
+            addUser($name, $username, $password, $conn);
 
-        echo "You may now log in with your credentials.";
+            echo "You may now log in with your credentials.";
+        }
+        else{
+            echo "Username can only be maximum of 20 characters.";
+        }
 
     }
 
@@ -97,7 +104,7 @@
                     $_SESSION['initiated'] = SESSION_VAR;
                 }
 
-                //refresh page so it can render home page
+                //direct user to home page 
                 header("Location: /cs174/midterm2/home.php");
                 
             }
@@ -107,7 +114,6 @@
         }
 
     }
-
 
     //for printing error messages
     function printError(){
@@ -140,7 +146,7 @@
         $result->close();
     }
 
-    //insert title and file lines to the database
+    //insert user to the database
     function addUser($name, $username, $password, $conn){
         $query = "INSERT INTO credentials (name, username,token) VALUES('$name','$username','$password')";
         $result = $conn->query($query);
@@ -153,5 +159,4 @@
 
     //close connection
     $conn->close();
-
 ?>
