@@ -2,7 +2,7 @@
     session_start();
     require_once 'login.php';
 
-    define("COL_SIZE",2); 
+    define("COL_SIZE", 3); 
     define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
     define("START_CHAR", 0);
     define("END_CHAR", 100);
@@ -45,7 +45,10 @@
         echo "</body></html>";
 
         if(!empty($_POST['id']) && !empty($_POST['name'])){
-            
+            $id = mysql_entities_fix_string($conn, $_POST['id']);
+            $name = mysql_entities_fix_string($conn, $_POST['name']);
+
+
         }
 
     }
@@ -96,25 +99,21 @@
     }
 
     //prints out the data table
-    function printThreads($user_id,$conn){
-        $query = "SELECT thread_name,content FROM threads WHERE user_id ='$user_id'";
+    function getAdvisor($id,$conn){
+        $query = "SELECT telephone, email, name FROM advisor WHERE lower_id >= '$id' AND upper_id <= '$id'";
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
         echo "<table>
                 <tr>
-                    <th class='thread-name-column'>Thread Name</th>
-                    <th class='content-column'>Content</th>
+                    <th>Telephone</th>
+                    <th>Email</th>
+                    <th>Advisor Name</th>
                 </tr>";
         for ($j = 0 ; $j < $rows ; ++$j)
         {
             $result->data_seek($j);
             $row = $result->fetch_array(MYSQLI_NUM);
-
-            //truncate the strings if expand button is not set
-            if(!isset($_POST['Expand'])){
-                $row[1] = substr($row[1], START_CHAR, END_CHAR);
-            }
 
             echo "<tr>";
             for ($k = 0 ; $k < COL_SIZE ; ++$k) 
