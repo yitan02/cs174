@@ -121,8 +121,14 @@
         $email = mysql_entities_fix_string($conn,$_POST['register_email']);
         $password = mysql_entities_fix_string($conn,$_POST['register_password']);
 
-            //check if username already exists
-            checkUniqueUsername($id, $conn);
+        $fail = validate_id($id);
+        $fail += validate_name($name);
+        $fail += validate_email($email);
+        $fail += validate_password($password);
+
+        if($fail == ""){
+            //check if ID already exists
+            checkUniqueID($id, $conn);
 
             //hash the password
             $password = password_hash($password, PASSWORD_DEFAULT);
@@ -133,9 +139,8 @@
             echo "You may now log in with your credentials.";
         }
         else{
-            echo "Username can only be maximum of 20 characters.";
+            exit;
         }
-
     }
 
     //login
@@ -225,6 +230,7 @@
         }
     }
 
+    //validate name
     function validate_name($field){
         if ($field == ""){
             return "Name must be entered.<br>";
@@ -232,7 +238,43 @@
         elseif (strlen($field) > 40){
             return "Name can only be max of 40 characters.<br>";
         }
-        elseif(preg_match)
+        elseif(preg_match("/[a-zA-Z]/", $field)){
+            return "Only letters allowed for name.<br>";
+        }
+        return "";
+        
+    }
+
+    //validate student id
+    function validate_id($field){
+        if ($field == ""){
+            return "ID must be entered.<br>";
+        }
+        elseif (strlen($field) != 9){
+            return "ID must be 9 digits.<br>";
+        }
+        elseif(preg_match("/[0-9]/", $field)){
+            return "Only numbers allowed for ID.<br>";
+        }
+        return ""; 
+    }
+
+    function validate_email($field){
+        if ($field == ""){
+            return "Email must be entered.<br>";
+        }
+        elseif(preg_match("/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/", $field)){
+            return "Only valid email allowed.<br>";
+        }
+        return "";
+    }
+
+    //validate password
+    function validate_password($field){
+        if ($field == ""){
+            return "Password must be entered.<br>";
+        }
+        return "";    
     }
 
     //close connection
