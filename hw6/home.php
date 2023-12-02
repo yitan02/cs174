@@ -29,12 +29,13 @@
             <input type="submit" name="logout" value="Logout">
         </form>
 
+        <h2>Find your advisor:</h2>
         <div class="upload-form">
             <form method = "post" action="home.php">
                 <label for ="name">Name:</label>
                 <input type="text" id="name" name="name"><br><br>
 
-                <label for ="id">Student ID (last two digits):</label>
+                <label for ="id">Student ID:</label>
                 <input type="text" id="id" name="id"><br><br>
 
                 <button>Submit</button>
@@ -45,23 +46,24 @@
         echo "</body></html>";
 
         if(!empty($_POST['id']) && !empty($_POST['name'])){
-            $id = mysql_entities_fix_string($conn, $_POST['id']);
-            $name = mysql_entities_fix_string($conn, $_POST['name']);
+            $input_id = mysql_entities_fix_string($conn, $_POST['id']);
+            $input_name = mysql_entities_fix_string($conn, $_POST['name']);
 
+            $session_name = mysql_entities_fix_string($conn, $_SESSION['name']);
 
+            if(($input_name == $session_name)){
+                $input_id = substr($input_id, strlen($input_id) - 2 ,strlen($input_id));
+                getAdvisor($input_id, $conn);
+            }
+            else {
+                echo "Please enter correct name.<br>";
+            }
         }
 
     }
     else{
         echo "Please <a href='main.php'> click here</a> to log in.";
         $conn->close();
-    }
-
-    //print table if session is active
-    if(isset($_SESSION['student_id'])){
-        $id = mysql_entities_fix_string($conn, $_SESSION['student_id']);
-
-        printThreads($id, $conn);
     }
 
     //destroy session if logout button is clicked
@@ -84,23 +86,14 @@
         return $conn->real_escape_string($string);
     }
 
-    //insert thread name and file lines to the database
-    function storeData($user_id,$thread_name,$file_lines,$conn){
-        $query = "INSERT INTO threads (user_id, thread_name,content) VALUES('$user_id','$thread_name','$file_lines')";
-        $result = $conn->query($query);
-
-        //check if query failed
-        if(!$result){
-            printError();
-        }
-        else{
-            echo "Insert success!";
-        }
-    }
-
     //prints out the data table
     function getAdvisor($id,$conn){
-        $query = "SELECT telephone, email, name FROM advisor WHERE lower_id >= '$id' AND upper_id <= '$id'";
+        if (($id >= 0) && ($id <= 49) ){
+            $query = "SELECT telephone, email, name FROM advisor WHERE aid = 1";
+        }
+        elseif (($id >= 50) && ($id <= 99)) {
+            $query = "SELECT telephone, email, name FROM advisor WHERE aid = 2";
+        }
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
