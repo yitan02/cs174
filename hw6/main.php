@@ -13,22 +13,22 @@
     if($conn->connect_error) die (printError());
 
     //sign up and login forms
-    if(!isset($_SESSION['name'])){
+    if(!isset($_SESSION['student_id'])){
         echo <<<_END
         <html>
         <head>
-            <title>Midterm 2</title>
+            <title>Homework 6</title>
             <script>
-                function validate(form) {
-                    fail = validateName(form.register_name.value)
-                    fail += validateID(form.register_id.value)
-                    fail += validateEmail(form.register_email.value)
-                    fail += validatePassword(form.register_password.value)
+                function validate(form){ 
+                    fail = validateName(form.register_name.value);
+                    fail += validateID(form.register_id.value);
+                    fail += validateEmail(form.register_email.value);
+                    fail += validatePassword(form.register_password.value);
 
                     if (fail == ""){
                         return true;
-                    }    
-                    else { 
+                    }
+                    else{
                         alert(fail);
                         return false;
                     }
@@ -36,46 +36,47 @@
 
                 function validateName(field){
                     if (field == ""){
-                        return "Please enter a name.\n"
+                        return "Please enter a name. ";
                     }
-                    else if (field.length < 5){
-                        return "Name must be at least 5 charas.\n"
+                    else if (field.length > 40){
+                        return "Name can only be max of 40 characters. ";
                     }
-                    else if (/[a-zA-Z]/.test(field)){
-                        return "Only letters allowed for name.\n"
+                    else if (/[^a-zA-Z]/.test(field)){
+                        return "Name can only have letters. ";
                     }
-                    return ""
+                    return "";
                 }
 
                 function validateID(field){
                     if (field == ""){
-                        return "Please enter an ID.\n"
+                        return "Please enter an ID. ";
                     }
                     else if (field.length != 9){
-                        return "ID must have 9 digits.\n"
+                        return "ID must have 9 digits. ";
                     }
-                    else if (/[0-9]/.test(field)){
-                        return "Only digits are allowed.\n"
+                    else if (/[^0-9]/.test(field)){
+                        return "Only numbers are allowed. ";
                     }
-                    return ""
+                    return "";
                 }
 
                 function validateEmail(field){
                     if (field == ""){
-                        return "Please enter an email.\n"
+                        return "Please enter an email. ";
                     }
-                    else if (/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/.test(field)){
-                        return "Please enter a valid email.\n"
+                    else if (!(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(field))){
+                        return "Please enter a valid email. ";
                     }
                     return ""
                 }
 
                 function validatePassword(field){
                     if (field == ""){
-                        return "Please enter a password.\n"
+                        return "Please enter a password. ";
                     }
-                    return ""
+                    return "";
                 }
+
 
             </script>
         </head>
@@ -86,16 +87,16 @@
         <h2>Sign Up</h2>
         <form method = "post" action="main.php" onsubmit="return validate(this)">
             <label for ="register_name">Name:</label><br>
-            <input type="text" id="register_name" name="register_name" value="$register_name"><br><br>
+            <input type="text" id="register_name" name="register_name"><br><br>
 
             <label for ="register_id">Student ID:</label><br>
-            <input type="text" id="register_id" name="register_id" value="$register_id"><br><br>
+            <input type="text" id="register_id" name="register_id"><br><br>
 
             <label for ="register_email">Email:</label><br>
-            <input type="text" id="register_email" name="register_email" value="$register_email"><br><br>
+            <input type="text" id="register_email" name="register_email"><br><br>
             
             <label for ="register_password">Password:</label><br>
-            <input type="password" id="register_password" name="register_password" value="$register_password"><br><br>
+            <input type="password" id="register_password" name="register_password"><br><br>
             <button>Sign Up</button>
         </form>
 
@@ -110,7 +111,7 @@
         </form>
         
         </body></html>
-        _END;
+    _END;
     }
     
     //sign up
@@ -122,9 +123,9 @@
         $password = mysql_entities_fix_string($conn,$_POST['register_password']);
 
         $fail = validate_id($id);
-        $fail += validate_name($name);
-        $fail += validate_email($email);
-        $fail += validate_password($password);
+        $fail .= validate_name($name);
+        $fail .= validate_email($email);
+        $fail .= validate_password($password);
 
         if($fail == ""){
             //check if ID already exists
@@ -169,7 +170,7 @@
                 $_SESSION['name'] = $stored_name;
 
                 //store student id
-                $_SESSION['student_id'] = $student_id;
+                $_SESSION['student_id'] = $id;
 
                 //regenerate new session id each time user logs in
                 if(!isset($_SESSION['initiated'])){
@@ -233,12 +234,12 @@
     //validate name
     function validate_name($field){
         if ($field == ""){
-            return "Name must be entered.<br>";
+            return "Please enter a name.<br>";
         }
         elseif (strlen($field) > 40){
             return "Name can only be max of 40 characters.<br>";
         }
-        elseif(preg_match("/[a-zA-Z]/", $field)){
+        elseif(preg_match("/[^a-zA-Z]/", $field)){
             return "Only letters allowed for name.<br>";
         }
         return "";
@@ -248,12 +249,12 @@
     //validate student id
     function validate_id($field){
         if ($field == ""){
-            return "ID must be entered.<br>";
+            return "Please enter an ID.<br>";
         }
         elseif (strlen($field) != 9){
             return "ID must be 9 digits.<br>";
         }
-        elseif(preg_match("/[0-9]/", $field)){
+        elseif(preg_match("/[^0-9]/", $field)){
             return "Only numbers allowed for ID.<br>";
         }
         return ""; 
@@ -261,9 +262,9 @@
 
     function validate_email($field){
         if ($field == ""){
-            return "Email must be entered.<br>";
+            return "Please enter an email.<br>";
         }
-        elseif(preg_match("/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/", $field)){
+        elseif(!(preg_match("/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/", $field))){
             return "Only valid email allowed.<br>";
         }
         return "";
@@ -272,7 +273,7 @@
     //validate password
     function validate_password($field){
         if ($field == ""){
-            return "Password must be entered.<br>";
+            return "Please enter a password.<br>";
         }
         return "";    
     }
