@@ -4,8 +4,7 @@
 
     define("COL_SIZE", 3); 
     define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
-    define("START_CHAR", 0);
-    define("END_CHAR", 100);
+    define("NO_DATA",0);
 
     //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
@@ -14,16 +13,16 @@
     if($conn->connect_error) die (printError());
 
     //check if there's a session
-    if(isset($_SESSION['student_id'])){
-        $id = mysql_entities_fix_string($conn, $_SESSION['student_id']);
+    if(isset($_SESSION['user_id'])){
+        $id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
         $name = mysql_entities_fix_string($conn, $_SESSION['name']);
 
         echo <<<_END
         <html>
+        <head>
+            <title>Home</title>
+        </head>
         <body>
-        <link rel="stylesheet" type="text/css" href="style.css">
- 
-        <title>Home</title></head>
         <h1>Hello $name! </h1>
         <form method="post" action="">
             <input type="submit" name="logout" value="Logout">
@@ -43,22 +42,38 @@
         </div>
 
         _END;
-        echo "</body></html>";
 
         if(!empty($_POST['id']) && !empty($_POST['name'])){
             $input_id = mysql_entities_fix_string($conn, $_POST['id']);
             $input_name = mysql_entities_fix_string($conn, $_POST['name']);
 
-            $session_name = mysql_entities_fix_string($conn, $_SESSION['name']);
+            $query = "SELECT * FROM credentials WHERE student_id ='$input_id'";
+            $result = $conn->query($query);
 
-            if(($input_name == $session_name)){
-                $input_id = substr($input_id, strlen($input_id) - 2 ,strlen($input_id));
-                getAdvisor($input_id, $conn);
-            }
-            else {
-                echo "Please enter correct name.<br>";
+            if(!$result || mysqli_num_rows($result) == NO_DATA){
+                printError();  
+            } 
+            elseif ($result->num_rows){
+                $row = $result->fetch_array(MYSQLI_NUM);
+                $result->close();
+                $stored_student_id = $row[1];
+                $stored_name = $row[2];
+
+                //to prevent user from looking up other student's advisor other than their own
+                if(($stored_student_id == $input_id) && ($stored_name == $input_name)){
+                    $input_id = substr($input_id, strlen($input_id) - 2 ,strlen($input_id));
+                    getAdvisor($input_id, $conn);
+                }
+                else{
+                    printError();
+                }
             }
         }
+
+        //close connection
+        $conn->close();
+
+        echo "</body></html>";
 
     }
     else{
@@ -88,12 +103,7 @@
 
     //prints out the data table
     function getAdvisor($id,$conn){
-        if (($id >= 0) && ($id <= 49) ){
-            $query = "SELECT telephone, email, name FROM advisor WHERE aid = 1";
-        }
-        elseif (($id >= 50) && ($id <= 99)) {
-            $query = "SELECT telephone, email, name FROM advisor WHERE aid = 2";
-        }
+        $query = "SELECT telephone, email, name FROM advisor WHERE '$id' >= lower_id AND '$id' <= upper_id";
         $result = $conn->query($query);
 
         $rows = $result->num_rows;
@@ -119,9 +129,6 @@
         //close result
         $result->close();
 
-        //close connection
-        $conn->close();
-
     }
 
     //destroy session
@@ -131,4 +138,5 @@
         session_destroy();
         header("Location: /cs174/hw6/main.php");
     }
+
 ?>
