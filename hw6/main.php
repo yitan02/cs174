@@ -4,7 +4,9 @@
 
     define("NO_DATA",0); 
     define("SESSION_VAR", 1);
-    define("MAX_CHAR", 20);
+    define("MAX_NAME_LENGTH", 40);
+    define("ID_LENGTH", 9);
+    define("MIN_PASSWORD_LENGTH", 5);
 
     //create new mysql connection
     $conn = new mysqli($hn,$un,$pw,$db);
@@ -13,13 +15,17 @@
     if($conn->connect_error) die (printError());
 
     //sign up and login forms
-    if(!isset($_SESSION['student_id'])){
+    if(!isset($_SESSION['user_id'])){
         echo <<<_END
         <html>
         <head>
             <title>Homework 6</title>
             <script>
-                function validate(form){ 
+                const MAX_NAME_LENGTH = 40;
+                const ID_LENGTH = 9;
+                const MIN_PASSWORD_LENGTH = 5;
+
+                function validateSignup(form){ 
                     fail = validateName(form.register_name.value);
                     fail += validateID(form.register_id.value);
                     fail += validateEmail(form.register_email.value);
@@ -34,11 +40,24 @@
                     }
                 }
 
+                function validateLogin(form){ 
+                    fail = validateID(form.id_login.value);
+                    fail += validatePassword(form.password_login.value);
+
+                    if (fail == ""){
+                        return true;
+                    }
+                    else{
+                        alert(fail);
+                        return false;
+                    }
+                }
+
                 function validateName(field){
                     if (field == ""){
                         return "Please enter a name. ";
                     }
-                    else if (field.length > 40){
+                    else if (field.length > MAX_NAME_LENGTH){
                         return "Name can only be max of 40 characters. ";
                     }
                     else if (/[^a-zA-Z]/.test(field)){
@@ -51,7 +70,7 @@
                     if (field == ""){
                         return "Please enter an ID. ";
                     }
-                    else if (field.length != 9){
+                    else if (field.length != ID_LENGTH){
                         return "ID must have 9 digits. ";
                     }
                     else if (/[^0-9]/.test(field)){
@@ -74,6 +93,10 @@
                     if (field == ""){
                         return "Please enter a password. ";
                     }
+                    else if (field.length < MIN_PASSWORD_LENGTH){
+                        return "Password must be more than 5 characters. ";
+                    }
+
                     return "";
                 }
 
@@ -85,7 +108,7 @@
         <link rel="stylesheet" type="text/css" href="style.css">
         <h1>Hello!</h1>
         <h2>Sign Up</h2>
-        <form method = "post" action="main.php" onsubmit="return validate(this)">
+        <form method = "post" action="main.php" onsubmit="return validateSignup(this)">
             <label for ="register_name">Name:</label><br>
             <input type="text" id="register_name" name="register_name"><br><br>
 
@@ -101,7 +124,7 @@
         </form>
 
         <h2>Login</h2>
-        <form method = "post" action="main.php">
+        <form method = "post" action="main.php" onsubmit="return validateLogin(this)">
             <label for ="id_login">Student ID:</label><br>
             <input type="text" id="id_login" name="id_login"><br><br>
 
@@ -117,25 +140,28 @@
     //sign up
     if(!empty($_POST['register_name']) && !empty($_POST['register_id']) && !empty($_POST['register_email']) && !empty($_POST['register_password'])){
         //sanitize inputs
-        $id = mysql_entities_fix_string($conn,$_POST['register_id']);
+        $student_id = mysql_entities_fix_string($conn,$_POST['register_id']);
         $name = mysql_entities_fix_string($conn,$_POST['register_name']);
         $email = mysql_entities_fix_string($conn,$_POST['register_email']);
         $password = mysql_entities_fix_string($conn,$_POST['register_password']);
 
-        $fail = validate_id($id);
+        $fail = validate_id($student_id);
         $fail .= validate_name($name);
         $fail .= validate_email($email);
         $fail .= validate_password($password);
 
         if($fail == ""){
             //check if ID already exists
-            checkUniqueID($id, $conn);
+            checkUniqueID($student_id, $conn);
+
+            //check if email already exists
+            checkUniqueEmail($email,$conn);
 
             //hash the password
             $password = password_hash($password, PASSWORD_DEFAULT);
 
             //add user to database
-            addUser($id, $name, $email, $password, $conn);
+            addUser($student_id, $name, $email, $password, $conn);
 
             echo "You may now log in with your credentials.";
         }
@@ -147,44 +173,53 @@
     //login
     if(!empty($_POST['id_login']) && !empty($_POST['password_login'])){
         //sanitize inputs
-        $id = mysql_entities_fix_string($conn,$_POST['id_login']);
+        $student_id = mysql_entities_fix_string($conn,$_POST['id_login']);
         $password = mysql_entities_fix_string($conn,$_POST['password_login']);
 
-        //query credentials
-        $query = "SELECT * FROM credentials WHERE student_id ='$id'";
-        $result = $conn->query($query);
+        $fail = validate_id($student_id);
+        $fail .= validate_password($password);
 
-        if(!$result || mysqli_num_rows($result) == NO_DATA){
-          die (printError());  
-        } 
-        elseif ($result->num_rows){
-            $row = $result->fetch_array(MYSQLI_NUM);
-            $result->close();
-            $stored_id = $row[0];
-            $stored_name = $row[1];
-            $stored_token = $row[3];
+        if ($fail == ""){
+            //query credentials
+            $query = "SELECT * FROM credentials WHERE student_id ='$student_id'";
+            $result = $conn->query($query);
 
-            //check if credentials are correct
-            if($id == $stored_id && password_verify($password, $stored_token)){
-                //store name of the user
-                $_SESSION['name'] = $stored_name;
+            if(!$result || mysqli_num_rows($result) == NO_DATA){
+            die (printError());  
+            } 
+            elseif ($result->num_rows){
+                $row = $result->fetch_array(MYSQLI_NUM);
+                $result->close();
+                $stored_uid = $row[0];
+                $stored_student_id = $row[1];
+                $stored_name = $row[2];
+                $stored_token = $row[4];
 
-                //store student id
-                $_SESSION['student_id'] = $id;
+                //check if credentials are correct
+                if($student_id == $stored_student_id && password_verify($password, $stored_token)){
+                    //store name of the user
+                    $_SESSION['name'] = $stored_name;
 
-                //regenerate new session id each time user logs in
-                if(!isset($_SESSION['initiated'])){
-                    session_regenerate_id();
-                    $_SESSION['initiated'] = SESSION_VAR;
+                    //store user id
+                    $_SESSION['user_id'] = $stored_uid;
+
+                    //regenerate new session id each time user logs in
+                    if(!isset($_SESSION['initiated'])){
+                        session_regenerate_id();
+                        $_SESSION['initiated'] = SESSION_VAR;
+                    }
+
+                    //direct user to home page 
+                    header("Location: /cs174/hw6/home.php");
+                    
                 }
-
-                //direct user to home page 
-                header("Location: /cs174/hw6/home.php");
-                
+                else{
+                    die("Invalid username/password combination");
+                }
             }
-            else{
-                die("Invalid username/password combination");
-            }
+        }
+        else{
+            printError();
         }
 
     }
@@ -205,13 +240,13 @@
         return $conn->real_escape_string($string);
     }
 
-    //check that the username does not already exist in the database
-    function checkUniqueID($id, $conn){
-        $query = "SELECT student_id FROM credentials WHERE student_id = '$id'";
+    //check that the student id does not already exist in the database
+    function checkUniqueID($student_id, $conn){
+        $query = "SELECT student_id FROM credentials WHERE student_id = '$student_id'";
         $result = $conn->query($query);
         $num_rows = mysqli_num_rows($result);
 
-        //if result returns more than 0 rows, then username exists
+        //if result returns more than 0 rows, then student id exists
         if($num_rows > NO_DATA){
             die("User already exists.");
         }
@@ -220,9 +255,24 @@
         $result->close();
     }
 
+    //check that the email does not already exist in the database
+    function checkUniqueEmail($email, $conn){
+        $query = "SELECT email FROM credentials WHERE email = '$email'";
+        $result = $conn->query($query);
+        $num_rows = mysqli_num_rows($result);
+
+        //if result returns more than 0 rows, then email exists
+        if($num_rows > NO_DATA){
+            die("Email already exists.");
+        }
+
+        //close result
+        $result->close();
+    }
+
     //insert user to the database
-    function addUser($id, $name, $email, $password, $conn){
-        $query = "INSERT INTO credentials (student_id, name, email, token) VALUES('$id','$name','$email','$password')";
+    function addUser($student_id, $name, $email, $password, $conn){
+        $query = "INSERT INTO credentials (student_id, name, email, token) VALUES('$student_id','$name','$email','$password')";
         $result = $conn->query($query);
 
         //check if query failed
@@ -236,7 +286,7 @@
         if ($field == ""){
             return "Please enter a name.<br>";
         }
-        elseif (strlen($field) > 40){
+        elseif (strlen($field) > MAX_NAME_LENGTH){
             return "Name can only be max of 40 characters.<br>";
         }
         elseif(preg_match("/[^a-zA-Z]/", $field)){
@@ -251,7 +301,7 @@
         if ($field == ""){
             return "Please enter an ID.<br>";
         }
-        elseif (strlen($field) != 9){
+        elseif (strlen($field) != ID_LENGTH){
             return "ID must be 9 digits.<br>";
         }
         elseif(preg_match("/[^0-9]/", $field)){
@@ -274,6 +324,9 @@
     function validate_password($field){
         if ($field == ""){
             return "Please enter a password.<br>";
+        }
+        elseif(strlen($field) < MIN_PASSWORD_LENGTH){
+            return "Password must be more than 5 characters.<br>";
         }
         return "";    
     }
