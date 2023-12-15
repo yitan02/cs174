@@ -23,6 +23,7 @@
             <title>Home</title>
         </head>
         <body>
+        <link rel="stylesheet" type="text/css" href="style.css">
         <h1>Hello $name! </h1>
         <form method="post" action="">
             <input type="submit" name="logout" value="Logout">
@@ -34,6 +35,13 @@
                 <label for="file"> Select File: </label><br>
                 <input id="file" type="file" name="filename"><br><br>
                 <button>Submit</button>
+            </form>
+        </div>
+
+        <div>
+            <h2>Get a random question!</h2>
+            <form method = "post" action="home.php">
+                <button name="get-question">Get Question</button>
             </form>
         </div>
 
@@ -66,6 +74,13 @@
                                     //sanitize the line
                                     $line = mysql_entities_fix_string($conn, $line);
 
+                                    //check for duplicate questions
+                                    if(isDuplicate($id, $line, $conn)){
+                                        echo $line . " is already in database and will not be added.<br>";
+                                    }
+                                    else{
+                                        addQuestion($id, $line, $conn);
+                                    }
                                 }
                             }
         
@@ -92,7 +107,7 @@
         }
 
         //close connection
-        $conn->close();
+        //$conn->close();
 
         echo "</body></html>";
 
@@ -123,47 +138,59 @@
     }
 
     //check duplicated questions
-    function checkDuplicate($question, $conn){
-        $query = "SELECT question FROM questions WHERE question = '$question'";
+    function isDuplicate($id, $question, $conn){
+        $query = "SELECT question FROM questions WHERE question = '$question' AND uid = '$id'";
         $result = $conn->query($query);
         $num_rows = mysqli_num_rows($result);
 
+        //close result
+        $result->close();
+
         //if result returns more than 0 rows, then question exists
         if($num_rows > NO_DATA){
-            echo $result . " already exists and will not be added.<br>";
+            return true;
+        }
+        else{
+            return false;
         }
 
-        //close result
-        $result->close();
     }
 
-    //prints out the data table
-    function getAdvisor($id,$conn){
-        $query = "SELECT telephone, email, name FROM advisor WHERE '$id' >= lower_id AND '$id' <= upper_id";
+    function addQuestion($id, $question, $conn){
+        $query = "INSERT INTO questions (uid, question) VALUES('$id','$question')";
         $result = $conn->query($query);
 
-        $rows = $result->num_rows;
-        echo "<table>
-                <tr>
-                    <th>Telephone</th>
-                    <th>Email</th>
-                    <th>Advisor Name</th>
-                </tr>";
-        for ($j = 0 ; $j < $rows ; ++$j)
-        {
-            $result->data_seek($j);
-            $row = $result->fetch_array(MYSQLI_NUM);
-
-            echo "<tr>";
-            for ($k = 0 ; $k < COL_SIZE ; ++$k) 
-                echo "<td><br>$row[$k]</td>";
-
-            echo "</tr>";
+        //check if query failed
+        if(!$result){
+            printError();
         }
-        echo "</table>";
+    }
+
+    if(isset($_POST['get-question'])){
+        $id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
+        getQuestion($id, $conn);
+    }
+
+    //get a random question
+    function getQuestion($id,$conn){
+        $query = "SELECT question FROM questions WHERE uid = '$id' ORDER BY RAND() LIMIT 1";
+        $result = $conn->query($query);
+
+        if ($result && $result->num_rows > NO_DATA){
+            $row = $result->fetch_assoc();
+            $randomQuestion = $row['question'];
+
+            echo $randomQuestion;
+        }
+        else{
+            echo "No question found.";
+        }
 
         //close result
         $result->close();
+
+        //close connection
+        $conn->close();
 
     }
 
@@ -174,5 +201,4 @@
         session_destroy();
         header("Location: /cs174/final/main.php");
     }
-
 ?>
