@@ -142,6 +142,7 @@
         $email = mysql_entities_fix_string($conn,$_POST['register_email']);
         $password = mysql_entities_fix_string($conn,$_POST['register_password']);
 
+        //validate inputs
         $fail = validate_name($name);
         $fail .= validate_username($username);
         $fail .= validate_email($email);
@@ -173,6 +174,7 @@
         $username = mysql_entities_fix_string($conn,$_POST['username_login']);
         $password = mysql_entities_fix_string($conn,$_POST['password_login']);
 
+        //validate inputs
         $fail = validate_username($username);
         $fail .= validate_password($password);
 
