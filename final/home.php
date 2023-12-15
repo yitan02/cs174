@@ -45,6 +45,8 @@
             </form>
         </div>
 
+        <br>
+
         _END;
         if ($_FILES){
             $sanitized_lines = "";
@@ -80,6 +82,7 @@
                                     }
                                     else{
                                         addQuestion($id, $line, $conn);
+                                        echo $line . " added to database.<br>";
                                     }
                                 }
                             }
