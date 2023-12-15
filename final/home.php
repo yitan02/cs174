@@ -2,7 +2,6 @@
     session_start();
     require_once 'login.php';
 
-    define("COL_SIZE", 3); 
     define('WEEK_IN_SEC', 60 * 60 * 24 * 7);
     define("NO_DATA",0);
 
@@ -48,6 +47,7 @@
         <br>
 
         _END;
+
         if ($_FILES){
             $sanitized_lines = "";
     
@@ -109,11 +109,15 @@
             }
         }
 
-        //close connection
-        //$conn->close();
-
         echo "</body></html>";
 
+        //get random question when button is clicked
+        if(isset($_POST['get-question'])){
+            getQuestion($id, $conn);
+        }
+
+        //close connection
+        $conn->close();
     }
     else{
         echo "Please <a href='main.php'> click here</a> to log in.";
@@ -159,6 +163,7 @@
 
     }
 
+    //add question to database
     function addQuestion($id, $question, $conn){
         $query = "INSERT INTO questions (uid, question) VALUES('$id','$question')";
         $result = $conn->query($query);
@@ -169,11 +174,6 @@
         }
     }
 
-    if(isset($_POST['get-question'])){
-        $id = mysql_entities_fix_string($conn, $_SESSION['user_id']);
-        getQuestion($id, $conn);
-    }
-
     //get a random question
     function getQuestion($id,$conn){
         $query = "SELECT question FROM questions WHERE uid = '$id' ORDER BY RAND() LIMIT 1";
@@ -181,9 +181,9 @@
 
         if ($result && $result->num_rows > NO_DATA){
             $row = $result->fetch_assoc();
-            $randomQuestion = $row['question'];
+            $random_question = $row['question'];
 
-            echo $randomQuestion;
+            echo $random_question;
         }
         else{
             echo "No question found.";
@@ -191,10 +191,6 @@
 
         //close result
         $result->close();
-
-        //close connection
-        $conn->close();
-
     }
 
     //destroy session
@@ -204,4 +200,5 @@
         session_destroy();
         header("Location: /cs174/final/main.php");
     }
+
 ?>
